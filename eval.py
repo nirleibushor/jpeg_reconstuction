@@ -12,9 +12,9 @@ if __name__ == '__main__':
     ckpt_epoch = 44
     model_path = '/home/nirl/Downloads/takehome/checkpoints_{}x{}_resid/model_epoch_{:05d}.pkl'.format(size, size, ckpt_epoch)
     # size = 128
-    image_base_path = f'/home/nirl/Downloads/takehome/images_{size}x{size}/series_006_slice_000'  # train
-    # image_base_path = f'/home/nirl/Downloads/takehome/images_{size}x{size}/series_000_slice_092'  # val
-    # image_base_path = f'/home/nirl/Downloads/takehome/images_{size}x{size}/series_002_slice_099'  # test
+    image_base_path = f'/home/nirl/Downloads/takehome/images_{size}x{size}/series_007_slice_000'  # train
+    # image_base_path = f'/home/nirl/Downloads/takehome/images_{size}x{size}/series_006_slice_000'  # val
+    # image_base_path = f'/home/nirl/Downloads/takehome/images_{size}x{size}/series_000_slice_000'  # test
 
     model = DnCNN()
     epoch, step = load_model(model, model_path)
