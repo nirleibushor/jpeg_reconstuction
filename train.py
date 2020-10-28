@@ -41,26 +41,27 @@ if __name__ == '__main__':
     images_path = f'/home/nirl/Downloads/takehome/images_{size}x{size}/'
     val = '/home/nirl/Downloads/takehome/val_images.txt'
     train = '/home/nirl/Downloads/takehome/train_images.txt'
-    checkpoints_path = f'/home/nirl/Downloads/takehome/checkpoints_{size}x{size}/'
+    checkpoints_path = f'/home/nirl/Downloads/takehome/checkpoints_{size}x{size}_resid/'
     batch_size = 64
-    num_workers = 2
+    num_workers = 1
     num_epochs = 1000
     print_step = 1
-    save_step = 10
+    save_step = 1
     learning_rate = 1e-3
-    lr_milestones = [20, 60, 120]
+    lr_milestones = [15, 50, 100]
     lr_gamma = 0.1
 
-    # resume_from = checkpoints_path + 'model_epoch_00010.pkl'
+    # resume_from = checkpoints_path + 'model_epoch_00440.pkl'
     resume_from = None
 
     ds_val = ImageToJpegDataset(val, images_path)
     ds_train = ImageToJpegDataset(train, images_path)
 
-    dl_val = DataLoader(ds_val, batch_size=batch_size, num_workers=num_workers)
-    dl_train = DataLoader(ds_train, batch_size=batch_size, num_workers=num_workers)
+    dl_val = DataLoader(ds_val, batch_size=batch_size, num_workers=num_workers, drop_last=False, shuffle=True)
+    dl_train = DataLoader(ds_train, batch_size=batch_size, num_workers=num_workers, shuffle=True)
 
     print(f'loaded {len(ds_train)} train images and {len(ds_val)} validation images.')
+    # print(f'loaded {len(ds_train)} train images.')
 
     model = DnCNN()
     last_epoch, step = -1, 0
@@ -79,8 +80,8 @@ if __name__ == '__main__':
         for batch in dl_train:
             optimizer.zero_grad()
             bmps, jpgs, y, indices = batch
-            bmps_pred = model(jpgs)
-            loss = rmse(bmps, bmps_pred)
+            preds = model(jpgs)
+            loss = rmse(y, preds)
             loss.backward()  # todo create a run_a_batch function
             optimizer.step()
             if step % print_step == 0:
@@ -93,23 +94,17 @@ if __name__ == '__main__':
 
         model.eval()
         with torch.no_grad():
-            val_loss_jpgs = 0.
             val_loss = 0.
             for batch in dl_val:
                 bmps, jpgs, y, indices = batch
-                bmps_pred = model(jpgs)
-                loss = rmse(bmps, bmps_pred)
-                loss_jpgs = rmse(bmps, jpgs)
+                preds = model(jpgs)
+                loss = rmse(y, preds)
                 w = jpgs.shape[0] / float(len(ds_val))
-                val_loss += loss * w
-                val_loss_jpgs += loss_jpgs * w
+                val_loss += (loss * w)
         model.train()
         writer.add_scalar('validation_loss', val_loss, step)
-        writer.add_scalar('validation_loss_jpgs', val_loss_jpgs, step)
 
-        stats_line = f'### EPOCH {epoch}) validation loss: {val_loss}  validation loss jpgs: {val_loss_jpgs} ({epoch_time}secs) ###\n'
-        if val_loss_jpgs > val_loss:
-            stats_line += '! SOLVED !\n'
+        stats_line = f'### EPOCH {epoch}) validation loss: {val_loss} ({epoch_time}secs) ###\n'
         print(stats_line)
 
         if epoch % save_step == 0:
