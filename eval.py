@@ -1,49 +1,76 @@
+from torch.utils.data import DataLoader
+from data import ImageToJpegDataset
 from IPython import embed
 import numpy as np
 import torch
 from network import DnCNN
-from scipy.misc import imread
 import matplotlib.pyplot as plt
-from train import rmse, load_model
+from train import load_model
 
 
 if __name__ == '__main__':
     size = 64
-    ckpt_epoch = 44
-    model_path = '/home/nirl/Downloads/takehome/checkpoints_{}x{}_resid/model_epoch_{:05d}.pkl'.format(size, size, ckpt_epoch)
-    # size = 128
-    image_base_path = f'/home/nirl/Downloads/takehome/images_{size}x{size}/series_007_slice_000'  # train
-    # image_base_path = f'/home/nirl/Downloads/takehome/images_{size}x{size}/series_006_slice_000'  # val
-    # image_base_path = f'/home/nirl/Downloads/takehome/images_{size}x{size}/series_000_slice_000'  # test
+    ckpt_epoch = 999
+    batch_size = 32
+    num_workers = 1
+
+    model_path = '/home/nirl/Downloads/takehome/checkpoints_{}x{}/model_epoch_{:05d}.pkl'.format(size, size, ckpt_epoch)
 
     model = DnCNN()
     epoch, step = load_model(model, model_path)
     model.eval()
 
-    bmp = imread(image_base_path + '.bmp')
-    jpg = imread(image_base_path + '.jpg')
+    size = 128
+    ds = ImageToJpegDataset('/home/nirl/Downloads/takehome/val_images.txt',
+                            f'/home/nirl/Downloads/takehome/images_{size}x{size}/')
+    # ds = ImageToJpegDataset('/home/nirl/Downloads/takehome/val_images.txt',
+    #                         f'/home/nirl/Downloads/takehome/')
+    dl = DataLoader(ds, batch_size=batch_size, num_workers=num_workers, drop_last=False)
 
     with torch.no_grad():
-        x = torch.from_numpy(jpg.astype('float32') / 255).unsqueeze(0).unsqueeze(0)
-        pred_residual = model(x)
-        pred_residual = np.round(pred_residual.numpy()[0][0] * 255).astype(np.int64)
-        pred_bmp = np.clip(jpg.astype(np.int64) + pred_residual, 0, 255).astype(np.uint8)
+        test_loss_jpgs = 0.
+        test_loss = 0.
+        for batch in dl:
+            bmps, jpgs, y, indices = batch
+            bmps_pred = model(jpgs)
 
-        y = torch.from_numpy(bmp.astype('float32') / 255).unsqueeze(0).unsqueeze(0)
-        y_pred = torch.from_numpy(pred_bmp.astype('float32') / 255).unsqueeze(0).unsqueeze(0)
-        loss_jpg = rmse(y, x)
-        loss_pred = rmse(y, y_pred)
+            bmps = (bmps.numpy() * 255).astype(np.uint8)
+            jpgs = (jpgs.numpy() * 255).astype(np.uint8)
+            bmps_pred = np.clip(bmps_pred.numpy() * 255, 0, 255).astype(np.uint8)
 
-        print('jpg', loss_jpg)
-        print('pred', loss_pred)
-        print('GOOD!' if loss_jpg > loss_pred else 'BAD!')
+            b = bmps.shape[0]
+            bmps = bmps.reshape(b, -1)
+            jpgs = jpgs.reshape(b, -1)
+            bmps_pred = bmps_pred.reshape(b, -1)
+            loss_jpgs = np.sqrt(np.square(bmps - jpgs).mean(axis=1)).mean()
+            loss = np.sqrt(np.square(bmps - bmps_pred).mean(axis=1)).mean()
 
-        row1 = np.hstack((bmp[:30,:30], jpg[:30,:30]))
-        row2 = np.hstack((bmp[:30,:30], pred_bmp[:30,:30]))
-        # row1 = np.hstack((bmp, jpg))
-        # row2 = np.hstack((bmp, pred_bmp))
-        img = np.vstack((row1, row2))
+            # loss = rmse(bmps, bmps_pred)
+            # loss_jpgs = rmse(bmps, jpgs)
 
-        plt.imshow(img, cmap='gray')
-        plt.title('up: bmp,before\ndown: bmp,after')
-        plt.show()
+            w = jpgs.shape[0] / float(len(ds))
+            test_loss += loss * w
+            test_loss_jpgs += loss_jpgs * w
+
+        stats_line = f'### EPOCH {epoch}) test loss: {loss} (loss jpgs: {loss_jpgs} ###\n'
+        print(stats_line)
+
+        for batch in dl:
+            bmps, jpgs, y, indices = batch
+            bmps_pred = model(jpgs)
+
+        bmps = (bmps[:5].squeeze(1).numpy() * 255).astype(np.uint8)
+        jpgs = (jpgs[:5].squeeze(1).numpy() * 255).astype(np.uint8)
+        bmps_pred = np.clip(bmps_pred[:5].squeeze(1).numpy() * 255, 0, 255).astype(np.uint8)
+
+        for i, bmp, jpg, pred in zip(indices, bmps, jpgs, bmps_pred):
+            row1 = np.hstack((bmp, jpg))
+            row2 = np.hstack((bmp, pred))
+            # row1 = np.hstack((bmp[:20,:20], jpg[:20,:20]))
+            # row2 = np.hstack((bmp[:20,:20], pred[:20,:20]))
+            img = np.vstack((row1, row2))
+
+            plt.imshow(img, cmap='gray')
+            plt.title(f'{ds.images_names[i]}\nup: bmp,before\ndown: bmp,after')
+            plt.show()
+
