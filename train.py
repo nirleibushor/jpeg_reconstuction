@@ -31,7 +31,7 @@ def load_model(model, checkpoint_path):
     :param checkpoint_path: str, path to checkpoint saved with save_model
     :return: epoch, step
     """
-    ckpt = torch.load(checkpoint_path, map_location='cpu')
+    ckpt = torch.load(checkpoint_path)
     model.load_state_dict(ckpt['state_dict'])
     return ckpt['epoch'], ckpt['step']
 

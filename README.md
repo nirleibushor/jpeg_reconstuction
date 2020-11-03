@@ -1,8 +1,8 @@
-# Jpeg Reconstuction
+# Jpeg Reconstruction
 
 ## Summary
 A module to fix jpeg compression artifacts with a small CNN, written in PyTorch.
-It achieves mean error of 1.32 compared to 1.62 when comparing to the original jpegs over the test set containing the series: 0, 1, 2, 3, 4, 7.
+It achieves mean error of 1.49 compared to 1.85 when comparing to the original jpegs over the test set containing the series: 0, 1, 2, 3, 4, 7.
 
 ## Contents
 ##### train.py

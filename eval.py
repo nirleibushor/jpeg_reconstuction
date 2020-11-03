@@ -1,3 +1,5 @@
+from IPython import embed
+import os
 import argparse
 import numpy as np
 import matplotlib.pyplot as plt
@@ -34,7 +36,6 @@ def np_uint8(x, clip=False):
 
 
 def display(bmp, jpg, bmp_pred, image_name):
-    #    TODO maybe change to new model in colab, submit
     """
     display an example of jpeg reconstruction
     :param bmp: np array target bmp
@@ -84,9 +85,9 @@ def run_on_test_set(model, dataloader):
             bmps, jpgs = bmps.cuda(), jpgs.cuda()
         bmps_pred = model(jpgs)
 
-        bmps = np_uint8(bmps)
-        jpgs = np_uint8(jpgs)
-        bmps_pred = np_uint8(bmps_pred, clip=True)
+        bmps = to_np(bmps, dtype='int')
+        jpgs = to_np(jpgs, dtype='int')
+        bmps_pred = to_np(bmps_pred, clip=True, dtype='int')
 
         loss = rmse(bmps, bmps_pred)
         loss_jpgs = rmse(bmps, jpgs)
@@ -138,12 +139,13 @@ def evaluate(images_root,
                 if torch.cuda.is_available():
                     bmps, jpgs = bmps.cuda(), jpgs.cuda()
                 bmps_pred = model(jpgs)
-                bmps = np_uint8(bmps)
-                jpgs = np_uint8(jpgs)
-                bmps_pred = np_uint8(bmps_pred, clip=True)
+                bmps = to_np(bmps)
+                jpgs = to_np(jpgs)
+                bmps_pred = to_np(bmps_pred, clip=True)
+
                 print('displaying a random example.')
                 i = np.random.randint(bmps.shape[0])
-                display(bmps[i, 0, :, :], jpgs[i, 0, :, :], bmps_pred[i, 0, :, :], indices[i])
+                display(bmps[i, 0, :, :], jpgs[i, 0, :, :], bmps_pred[i, 0, :, :], dl.dataset.images_names[indices[i]])
                 break
 
 
